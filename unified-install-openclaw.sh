@@ -1216,10 +1216,37 @@ approve_telegram_pairing() {
 
         # Fix permissions
         ${SSH_CMD} "${REMOTE_SSH_HOST}" "chown 1000:1000 ${pairing_file} && chmod 600 ${pairing_file}"
+
+        # Also write user_id to allowFrom file (OpenClaw uses this to gate access)
+        local allowfrom_file="${OPENCLAW_CONFIG_DIR}/credentials/telegram-default-allowFrom.json"
+        ${SSH_CMD} "${REMOTE_SSH_HOST}" "python3 - <<'PYEOF'
+import json, os
+f = '${allowfrom_file}'
+d = json.load(open(f)) if os.path.exists(f) else {'version': 1, 'allowFrom': []}
+if '${user_id}' not in d.get('allowFrom', []):
+    d.setdefault('allowFrom', []).append('${user_id}')
+json.dump(d, open(f, 'w'), indent=2)
+os.chmod(f, 0o600)
+import shutil; shutil.chown(f, 1000, 1000)
+print('allowFrom updated')
+PYEOF"
     else
         echo "$new_pairing_data" | jq '.' | sudo tee "$pairing_file" > /dev/null
         sudo chown 1000:1000 "$pairing_file"
         sudo chmod 600 "$pairing_file"
+
+        # Also write user_id to allowFrom file (OpenClaw uses this to gate access)
+        local allowfrom_file="${OPENCLAW_CONFIG_DIR}/credentials/telegram-default-allowFrom.json"
+        python3 - <<PYEOF
+import json, os
+f = '${allowfrom_file}'
+d = json.load(open(f)) if os.path.exists(f) else {'version': 1, 'allowFrom': []}
+if '${user_id}' not in d.get('allowFrom', []):
+    d.setdefault('allowFrom', []).append('${user_id}')
+json.dump(d, open(f, 'w'), indent=2)
+PYEOF
+        sudo chown 1000:1000 "$allowfrom_file"
+        sudo chmod 600 "$allowfrom_file"
     fi
 
     log_success "Pairing approved successfully"

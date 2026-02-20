@@ -1146,7 +1146,7 @@ get_pairing_data() {
     local pairing_file="${OPENCLAW_CONFIG_DIR}/credentials/telegram-pairing.json"
 
     if [ "$EXECUTION_MODE" = "remote" ]; then
-        run_remote_cmd "cat ${pairing_file} 2>/dev/null || echo '{}'"
+        ${SSH_CMD} "${REMOTE_SSH_HOST}" "cat ${pairing_file} 2>/dev/null || echo '{}'"
     else
         cat "$pairing_file" 2>/dev/null || echo "{}"
     fi
@@ -1215,7 +1215,7 @@ approve_telegram_pairing() {
         rm -f "$temp_file"
 
         # Fix permissions
-        run_remote_cmd "chown 1000:1000 ${pairing_file} && chmod 600 ${pairing_file}"
+        ${SSH_CMD} "${REMOTE_SSH_HOST}" "chown 1000:1000 ${pairing_file} && chmod 600 ${pairing_file}"
     else
         echo "$new_pairing_data" | jq '.' | sudo tee "$pairing_file" > /dev/null
         sudo chown 1000:1000 "$pairing_file"
@@ -1230,7 +1230,7 @@ restart_gateway_for_pairing() {
     log_info "Restarting gateway to apply pairing changes..."
 
     if [ "$EXECUTION_MODE" = "remote" ]; then
-        run_remote_cmd "cd ${OPENCLAW_INSTALL_DIR}/openclaw && docker compose restart openclaw-gateway"
+        ${SSH_CMD} "${REMOTE_SSH_HOST}" "cd ${OPENCLAW_INSTALL_DIR}/openclaw && docker compose restart openclaw-gateway"
     else
         cd "${OPENCLAW_INSTALL_DIR}/openclaw" && \
         $(get_docker_cmd) compose restart openclaw-gateway
